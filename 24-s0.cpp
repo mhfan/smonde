@@ -63,8 +63,7 @@ private:
     }
 };
 
-void solve(std::vector<Value> const& s, const Value& g)
-{
+void solve(std::vector<Value> const& s, const Value& g) {
     if (s.size() == 1 && s.front() == g)
 	std::cout << s.front().s << '\n';
 
@@ -85,8 +84,7 @@ void solve(std::vector<Value> const& s, const Value& g)
     }
 }
 
-int main()
-{
+int main() {
     const char* s0 = "\033[0;33mPlease input the data as: "
 		     "\033[1;4;31mgoal  num1 num2 ...\033[0;1;35m";
 

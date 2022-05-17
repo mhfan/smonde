@@ -3,7 +3,7 @@
  *                                                              *
  * Description:                                                 *
  *                                                              *
- * Maintainer:  ·¶ÃÀ»Ô(MeiHui FAN)  <mhfan@ustc.edu>            *
+ * Maintainer:  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(MeiHui FAN)  <mhfan@ustc.edu>            *
  *              Laboratory of Structural Biology                *
  *              School of Life Science                          *
  *              Univ. of Sci.& Tech. of China (USTC)            *
@@ -34,8 +34,8 @@ using Smonde::Product;
 using Smonde::Sum;
 
 struct Value {
-    int x, y;
-    std::string s;	// v = x/y;
+    int x, y;	// v = x/y; // rational number form
+    std::string s;
 
     explicit Value(int a): x(a), y(1) {
 	char buf[64];
@@ -118,10 +118,23 @@ struct OP {
 
 struct Reduce {
     static void apply(Universe& u, Multiverse& m) {
-	Value v = u.vals.top();
-	u.vals.pop();
-	u.vals.top() = (u.vals.top().* u.ops.top())(v);
-	u.ops.pop();
+	Value const&	v1 = u.vals.top();  u.vals.pop();
+	Operator const& op = u. ops.top();  u. ops.pop();
+	Value& v = u.vals.top();    v = (v.*op)(v1);
+
+#if 0//DEBUG
+	std::cerr << "\033[1m" << typeid(Reduce).name()
+		  << ": \033[36mnums=\033[33m" << u.nums.size()
+		  << ", \033[36mvals=\033[33m" << u.vals.size()
+		  << ", \033[36m ops=\033[33m" << u. ops.size()
+		  << "\033[0;37m" << std::endl;
+#endif
+
+	// XXX: filter out negative result sub-expr. in subs-form,
+	// which always can be transformed to positive result sub-expr.
+	if (0 < u.ops.size() && op == &Value::operator-
+		&& v.x * v.y < 0) return;
+
 	m.result(u);
     }
 };
@@ -142,34 +155,30 @@ struct Pop_sub {
 
 struct Check_order {
     static void apply(Universe& u, Multiverse& m) {
-	if (u.vals.top().s < u.subs.top()) return;
-	u.subs.top() = u.vals.top().s;
+	Value const& v = u.vals.top();
+	if (v.s < u.subs.top()) return;
+	u.subs.top() = v.s;
 	m.result(u);
     }
 };
 
 template <Operator op, typename S>
 struct Nform1_: Sum<Product<OP<op>, S, Push_sub,   S, Check_order, Reduce>,
-		    Product<OP<op>, Nform1_<op,S>, S, Check_order, Reduce> >
-{};
+		    Product<OP<op>, Nform1_<op,S>, S, Check_order, Reduce> > {};
 
 template <Operator op, typename Sform>
 struct Nform1: Product<Nform1_<op, Sum<Num, Sform> >, Pop_sub> {};
 
 template <Operator op, Operator sop, typename Sform>
 struct Nform2: Product<OP<sop>, Sum<Num, Sform, Nform1<op, Sform> >,
-				 Sum<Num, Sform, Nform1<op, Sform> >,
-				 Reduce>
-{};
+				Sum<Num, Sform, Nform1<op, Sform> >, Reduce> {};
 
 template <Operator op, Operator sop, typename Sform>
 struct Nform: Sum<Nform1<op, Sform>, Nform2<op, sop, Sform> > {};
 
 #if __BORLANDC__
 struct Addsubform: Nform<&Value::operator+, &Value::operator-,
-			 Nform<&Value::operator*, &Value::operator/,
-			 Addsubform> >
-{};
+		   Nform<&Value::operator*, &Value::operator/, Addsubform> > {};
 
 struct Muldivform: Nform<&Value::operator*, &Value::operator/, Addsubform> {};
 #else
@@ -177,8 +186,7 @@ template <typename Addsubform>
 struct Muldivfor_: Nform<&Value::operator*, &Value::operator/, Addsubform> {};
 
 struct Addsubform: Nform<&Value::operator+, &Value::operator-,
-			 Muldivfor_<Addsubform> >
-{};
+			 Muldivfor_<Addsubform> > {};
 
 struct Muldivform: Muldivfor_<Addsubform> {};
 #endif
@@ -187,12 +195,12 @@ struct Muldivform: Muldivfor_<Addsubform> {};
 template <typename Rule>
 struct Inspect {
     template <typename Universe>
-    static void apply (Universe& u, Multiverse<Universe>& m) {
+    static void apply (Universe& u, Multiverse& m) {
 	std::cerr << "\033[1m" << typeid(Rule).name()
 		  << ": \033[36mnums=\033[33m" << u.nums.size()
 		  << ", \033[36mvals=\033[33m" << u.vals.size()
-		  << ", \033[36m ops=\033[33m" << u.ops.size()
-		  << "\033[0;37m." << std::endl;
+		  << ", \033[36m ops=\033[33m" << u. ops.size()
+		  << "\033[0;37m" << std::endl;
 	Rule::apply(u, m);
     }
 };
@@ -205,8 +213,8 @@ struct Expr: Sum<Num, Addsubform, Muldivform> {};
 /*
 struct Any_op: Sum<OP<&Value::operator+ >, OP<&Value::operator- >,
 		   OP<&Value::operator* >, OP<&Value::operator/ > > {};
-struct Expr  : Sum<Num, Product<Any_op, Expr, Expr, Reduce> > {};
 //struct Expr  : Sum<Num, Product<Any_op, Expr, Expr, Inspect<Reduce> > > {};
+struct Expr  : Sum<Num, Product<Any_op, Expr, Expr, Reduce> > {};
  */
 
 struct Destiny: Multiverse {
@@ -224,24 +232,28 @@ private:
     std::set<std::string> seen_;
 };
 
-int main()
-{
+int main(int argc, char* argv[]) {
     const char* s0 = "\033[0;33mPlease type the data as: "
 		     "\033[1;4;31mgoal  num1 num2 ...\033[0;1;35m";
 
     std::cout << "\033[2J\033[0;0H" << s0 << std::endl;
     std::string str;
 
+    /*int g = 24;
+    if (1 < argc) {
+	std::istringstream is(argv[1]);
+	is >> g;
+    }*/
+
     while (std::getline(std::cin, str)) {
 	Universe universe;
-	int g, n;
+	int n, g;
 
 	std::istringstream is(str);
 	if (!(is >> g)) continue;
 	while (is >> n) universe.nums.push_back(n);
 
-	std::cout << std::endl << "\033[37mGot the results: \033[32m"
-		  << std::endl;
+	std::cout << "\033[37mGot results: \033[32m" << std::endl;
 
 	Destiny destiny(g);
 	Expr::apply(universe, destiny);

@@ -27,13 +27,15 @@ namespace Smonde {
 
 template <typename Universe>
 struct Multiverse { virtual void result(Universe&) = 0; };
+//struct Rule { static void apply(Universe& u, Multiverse& m); };
+// Universe: problem space, Multiverse: answer space
 
-struct Zero {
+struct Zero {	// Zero(u) = {}
     template <typename Universe>
     static void apply (Universe&, Multiverse<Universe>&) {}
 };
 
-struct One {
+struct One {	// One(u) = {u}
     template <typename Universe>
     static void apply (Universe& u, Multiverse<Universe>& m) { m.result(u); }
 };
@@ -105,8 +107,7 @@ struct Star: Sum<One,
 		 Product<Product<A, B, C, D, E, F, G, H, I, J, K, L, M,
 				 N, O, P, Q, R, S, T, U, V, W, X, Y, Z>,
 			 Star<A, B, C, D, E, F, G, H, I, J, K, L, M,
-			      N, O, P, Q, R, S, T, U, V, W, X, Y, Z> > >
-{};
+			      N, O, P, Q, R, S, T, U, V, W, X, Y, Z> > > {};
 
 template <typename A,	  typename B=One, typename C=One, typename D=One,
 	  typename E=One, typename F=One, typename G=One, typename H=One,
@@ -117,11 +118,10 @@ template <typename A,	  typename B=One, typename C=One, typename D=One,
 	  typename Y=One, typename Z=One>   // Cross<R> = ???
 struct Cross: Sum<Product<A, B, C, D, E, F, G, H, I, J, K, L, M,
 			  N, O, P, Q, R, S, T, U, V, W, X, Y, Z>,
-		  Product<Product<A, B, C, D, E, F, G, H, I, J, K, L, M,
-				  N, O, P, Q, R, S, T, U, V, W, X, Y, Z>,
+		  Product<Product< A, B, C, D, E, F, G, H, I, J, K, L, M,
+				   N, O, P, Q, R, S, T, U, V, W, X, Y, Z>,
 			  Cross<A, B, C, D, E, F, G, H, I, J, K, L, M,
-				N, O, P, Q, R, S, T, U, V, W, X, Y, Z> > >
-{};
+				N, O, P, Q, R, S, T, U, V, W, X, Y, Z> > > {};
 
 }   // namespace Smonde
 
